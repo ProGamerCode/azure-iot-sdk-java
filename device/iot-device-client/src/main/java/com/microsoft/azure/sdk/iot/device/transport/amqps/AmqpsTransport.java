@@ -92,7 +92,7 @@ public final class AmqpsTransport implements IotHubTransport, ServerListener
                 this.connection.addListener(this);
 
                 this.connection.open();
-                this.connection.authenticate();
+                //this.connection.authenticate();
             }
             catch (Exception e)
             {
