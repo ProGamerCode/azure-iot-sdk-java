@@ -4,10 +4,7 @@
 package com.microsoft.azure.sdk.iot.device.transport.mqtt;
 
 import com.microsoft.azure.sdk.iot.device.*;
-import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportConnection;
-import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportMessage;
-import com.microsoft.azure.sdk.iot.device.transport.State;
-import com.microsoft.azure.sdk.iot.device.transport.TransportUtils;
+import com.microsoft.azure.sdk.iot.device.transport.*;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -368,5 +365,23 @@ public class MqttIotHubConnection implements MqttConnectionStateListener, IotHub
             //Codes_SRS_MQTTIOTHUBCONNECTION_34_029: [If this object's connection state callback is not null, this function shall fire that callback with the saved context and status CONNECTION_SUCCESS.]
             this.stateCallback.execute(IotHubConnectionState.CONNECTION_SUCCESS, this.stateCallbackContext);
         }
+    }
+
+    @Override
+    public void addListener(IotHubListener listener) throws IOException
+    {
+
+    }
+
+    @Override
+    public IotHubStatusCode sendMessage(Message message) throws IOException
+    {
+        return null;
+    }
+
+    @Override
+    public IotHubStatusCode sendMessageResult(Message message, IotHubMessageResult result) throws IOException
+    {
+        return null;
     }
 }

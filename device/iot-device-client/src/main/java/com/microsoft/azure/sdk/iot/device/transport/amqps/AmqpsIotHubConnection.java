@@ -6,6 +6,7 @@ package com.microsoft.azure.sdk.iot.device.transport.amqps;
 
 import com.microsoft.azure.sdk.iot.deps.ws.impl.WebSocketImpl;
 import com.microsoft.azure.sdk.iot.device.*;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubListener;
 import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportConnection;
 import com.microsoft.azure.sdk.iot.device.transport.State;
 import com.microsoft.azure.sdk.iot.device.transport.TransportUtils;
@@ -833,5 +834,23 @@ public final class AmqpsIotHubConnection extends BaseHandler implements IotHubTr
         {
             return Proton.reactor(this);
         }
+    }
+
+    @Override
+    public void addListener(IotHubListener listener) throws IOException
+    {
+
+    }
+
+    @Override
+    public IotHubStatusCode sendMessage(com.microsoft.azure.sdk.iot.device.Message message) throws IOException
+    {
+        return null;
+    }
+
+    @Override
+    public IotHubStatusCode sendMessageResult(com.microsoft.azure.sdk.iot.device.Message message, IotHubMessageResult result) throws IOException
+    {
+        return null;
     }
 }

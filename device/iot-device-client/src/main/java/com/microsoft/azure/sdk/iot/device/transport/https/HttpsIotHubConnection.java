@@ -5,6 +5,7 @@ package com.microsoft.azure.sdk.iot.device.transport.https;
 
 import com.microsoft.azure.sdk.iot.device.*;
 import com.microsoft.azure.sdk.iot.device.net.*;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubListener;
 import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportConnection;
 
 import javax.net.ssl.SSLContext;
@@ -422,5 +423,35 @@ public class HttpsIotHubConnection implements IotHubTransportConnection
     private static String sanitizeEtag(String dirtyEtag)
     {
         return dirtyEtag.replace("\"", "");
+    }
+
+    @Override
+    public void open() throws IOException
+    {
+
+    }
+
+    @Override
+    public void addListener(IotHubListener listener) throws IOException
+    {
+
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+
+    }
+
+    @Override
+    public IotHubStatusCode sendMessage(Message message) throws IOException
+    {
+        return null;
+    }
+
+    @Override
+    public IotHubStatusCode sendMessageResult(Message message, IotHubMessageResult result) throws IOException
+    {
+        return null;
     }
 }
