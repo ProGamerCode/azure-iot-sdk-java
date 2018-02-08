@@ -5,6 +5,7 @@ package com.microsoft.azure.sdk.iot.device.transport.https;
 
 import com.microsoft.azure.sdk.iot.device.*;
 import com.microsoft.azure.sdk.iot.device.net.*;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportConnection;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -15,7 +16,7 @@ import java.util.Map;
  * An HTTPS connection between a device and an IoT Hub. Contains functionality
  * for synchronously connecting to the different IoT Hub resource URIs.
  */
-public class HttpsIotHubConnection
+public class HttpsIotHubConnection implements IotHubTransportConnection
 {
     private static final String HTTPS_HEAD_TAG = "https://";
     private static final String HTTPS_PROPERTY_AUTHORIZATION_TAG = "authorization";

@@ -6,6 +6,7 @@ package com.microsoft.azure.sdk.iot.device.transport.amqps;
 
 import com.microsoft.azure.sdk.iot.deps.ws.impl.WebSocketImpl;
 import com.microsoft.azure.sdk.iot.device.*;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportConnection;
 import com.microsoft.azure.sdk.iot.device.transport.State;
 import com.microsoft.azure.sdk.iot.device.transport.TransportUtils;
 import org.apache.qpid.proton.Proton;
@@ -31,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * An AMQPS IotHub connection between a device and an IoTHub. This class contains functionality for sending/receiving
  * a message, and logic to re-establish the connection with the IoTHub in case it gets lost.
  */
-public final class AmqpsIotHubConnection extends BaseHandler
+public final class AmqpsIotHubConnection extends BaseHandler implements IotHubTransportConnection
 {
     private static final int MAX_WAIT_TO_OPEN_CLOSE_CONNECTION = 1*60*1000; // 1 minute timeout
     private static final int MAX_WAIT_TO_TERMINATE_EXECUTOR = 30;

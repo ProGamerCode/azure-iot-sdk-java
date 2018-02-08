@@ -4,6 +4,7 @@
 package com.microsoft.azure.sdk.iot.device.transport.mqtt;
 
 import com.microsoft.azure.sdk.iot.device.*;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportConnection;
 import com.microsoft.azure.sdk.iot.device.transport.IotHubTransportMessage;
 import com.microsoft.azure.sdk.iot.device.transport.State;
 import com.microsoft.azure.sdk.iot.device.transport.TransportUtils;
@@ -12,7 +13,7 @@ import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.URLEncoder;
 
-public class MqttIotHubConnection implements MqttConnectionStateListener
+public class MqttIotHubConnection implements MqttConnectionStateListener, IotHubTransportConnection
 {
     /** The MQTT connection lock. */
     private final Object MQTT_CONNECTION_LOCK = new Object();

@@ -90,15 +90,13 @@ public final class DeviceIO
      * Constructor that takes a connection string as an argument.
      *
      * @param config the connection configuration.
-     * @param protocol the communication protocol used (i.e. HTTPS).
      * @param sendPeriodInMilliseconds the period of time that iot hub will try to send messages in milliseconds.
      * @param receivePeriodInMilliseconds the period of time that iot hub will try to receive messages in milliseconds.
      *
      * @throws IllegalArgumentException if any of {@code config} or
      * {@code protocol} are {@code null}.
      */
-    DeviceIO(DeviceClientConfig config, IotHubClientProtocol protocol,
-             long sendPeriodInMilliseconds, long receivePeriodInMilliseconds)
+    DeviceIO(DeviceClientConfig config, long sendPeriodInMilliseconds, long receivePeriodInMilliseconds)
     {
         /* Codes_SRS_DEVICE_IO_21_002: [If the `config` is null, the constructor shall throw an IllegalArgumentException.] */
         if(config == null)
@@ -106,17 +104,12 @@ public final class DeviceIO
             throw new IllegalArgumentException("Config cannot be null.");
         }
 
-        /* Codes_SRS_DEVICE_IO_21_004: [If the `protocol` is null, the constructor shall throw an IllegalArgumentException.] */
-        if (protocol == null)
-        {
-            throw new IllegalArgumentException("Protocol cannot be null.");
-        }
-
         /* Codes_SRS_DEVICE_IO_21_001: [The constructor shall store the provided protocol and config information.] */
         this.config = config;
-        this.protocol = protocol;
+        this.protocol = this.config.getProtocol();
 
-        /* Codes_SRS_DEVICE_IO_21_003: [The constructor shall initialize the IoT Hub transport that uses the `protocol` specified.] */
+ //Codes_SRS_DEVICE_IO_21_003: [The constructor shall initialize the IoT Hub transport that uses the `protocol` specified.]
+
         switch (protocol)
         {
             case HTTPS:
@@ -140,7 +133,8 @@ public final class DeviceIO
                 this.transport = new MqttTransport(this.config);
                 break;
             default:
-                /* Codes_SRS_DEVICE_IO_21_005: [If the `protocol` is not valid, the constructor shall throw an IllegalArgumentException.] */
+ //Codes_SRS_DEVICE_IO_21_005: [If the `protocol` is not valid, the constructor shall throw an IllegalArgumentException.]
+
                 // should never happen.
                 throw new IllegalStateException("Invalid client protocol specified.");
         }
@@ -178,6 +172,11 @@ public final class DeviceIO
         /* Codes_SRS_DEVICE_IO_21_014: [The open shall schedule receive tasks to run every receivePeriodInMilliseconds milliseconds.] */
         /* Codes_SRS_DEVICE_IO_21_016: [The open shall set the `state` as `OPEN`.] */
         commonOpenSetup();
+    }
+
+    public void addClient(DeviceClientConfig config)
+    {
+        // add client to transport
     }
 
     /**
