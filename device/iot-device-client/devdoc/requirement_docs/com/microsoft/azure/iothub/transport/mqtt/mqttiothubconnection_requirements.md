@@ -126,7 +126,7 @@ public void onConnectionLost(Throwable throwable);
 
 **SRS_MQTTIOTHUBCONNECTION_34_037: [**If the provided throwable is an instance of MqttException, this function shall derive the associated ConnectionStatusException and notify the listener of that derived exception.**]**
 
-**SRS_MQTTIOTHUBCONNECTION_34_037: [**If the provided throwable is not an instance of MqttException, this function shall notify the listener of that throwable.**]**
+**SRS_MQTTIOTHUBCONNECTION_34_038: [**If the provided throwable is not an instance of MqttException, this function shall notify the listener of that throwable.**]**
 
 **SRS_MQTTIOTHUBCONNECTION_34_039: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map all client exceptions with underlying UnknownHostException or InterruptedException to a retryable ProtocolConnectionStatusException.**]**
 

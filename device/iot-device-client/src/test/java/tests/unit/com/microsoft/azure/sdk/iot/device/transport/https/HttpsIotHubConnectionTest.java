@@ -4,7 +4,10 @@
 package tests.unit.com.microsoft.azure.sdk.iot.device.transport.https;
 
 import com.microsoft.azure.sdk.iot.device.*;
+import com.microsoft.azure.sdk.iot.device.exceptions.*;
 import com.microsoft.azure.sdk.iot.device.net.*;
+import com.microsoft.azure.sdk.iot.device.transport.ConnectionStatusExceptions.ProtocolConnectionStatusException;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubListener;
 import com.microsoft.azure.sdk.iot.device.transport.https.*;
 import mockit.Deencapsulation;
 import mockit.Mocked;
@@ -15,7 +18,9 @@ import org.junit.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
+import java.net.NoRouteToHostException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -37,11 +42,17 @@ public class HttpsIotHubConnectionTest
     @Mocked
     HttpsSingleMessage mockMsg;
     @Mocked
+    Message mockedMessage;
+    @Mocked
     HttpsRequest mockRequest;
     @Mocked
     HttpsResponse mockResponse;
     @Mocked
     IotHubStatusCode mockStatus;
+    @Mocked
+    IotHubListener mockedListener;
+    @Mocked
+    ProtocolConnectionStatusException mockedProtocolConnectionStatusException;
 
     private static final String testSasToken = "SharedAccessSignature sr=test&sig=test&se=0";
 
@@ -1876,5 +1887,228 @@ public class HttpsIotHubConnectionTest
                 times = 2; //receiveMessage calls this once, but so should sendMessageResult
             }
         };
+    }
+
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_063: [If this function encounters a NoRouteToHostException or UnknownHostException upon sending the http request, this function shall notify its listener of a retryable ProtocolConnectionStatusException.]
+    @Test
+    public void sendMessageThrowsNoRouteToHostNotifiesListener() throws IOException
+    {
+        //arrange
+        new NonStrictExpectations()
+        {
+            {
+                new URL(anyString);
+                result = mockUrl;
+                new HttpsRequest(mockUrl, HttpsMethod.POST, (byte[]) any);
+                result = mockRequest;
+                mockRequest.send();
+                result = new NoRouteToHostException();
+                new ProtocolConnectionStatusException();
+                result = mockedProtocolConnectionStatusException;
+            }
+        };
+        HttpsIotHubConnection connection = new HttpsIotHubConnection(mockConfig);
+        connection.addListener(mockedListener);
+
+        //act
+        try
+        {
+            connection.sendMessage(mockedMessage);
+        }
+        catch (IOException e)
+        {
+            //expected to catch this, but aren't testing for this, so just ignore the exception
+        }
+
+        //assert
+        new Verifications()
+        {
+            {
+                mockedProtocolConnectionStatusException.setRetryable(true);
+                times = 1;
+                mockedListener.onConnectionLost((ProtocolConnectionStatusException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_063: [If this function encounters a NoRouteToHostException or UnknownHostException upon sending the http request, this function shall notify its listener of a retryable ProtocolConnectionStatusException.]
+    @Test
+    public void sendMessageThrowsUnknownHostNotifiesListener() throws IOException
+    {
+        //arrange
+        new NonStrictExpectations()
+        {
+            {
+                new URL(anyString);
+                result = mockUrl;
+                new HttpsRequest(mockUrl, HttpsMethod.POST, (byte[]) any);
+                result = mockRequest;
+                mockRequest.send();
+                result = new UnknownHostException();
+                new ProtocolConnectionStatusException();
+                result = mockedProtocolConnectionStatusException;
+            }
+        };
+        HttpsIotHubConnection connection = new HttpsIotHubConnection(mockConfig);
+        connection.addListener(mockedListener);
+
+        //act
+        try
+        {
+            connection.sendMessage(mockedMessage);
+        }
+        catch (IOException e)
+        {
+            //expected to catch this, but aren't testing for this, so just ignore the exception
+        }
+
+        //assert
+        new Verifications()
+        {
+            {
+                mockedProtocolConnectionStatusException.setRetryable(true);
+                times = 1;
+                mockedListener.onConnectionLost((ProtocolConnectionStatusException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs400() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(400);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusBadFormatException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs401() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(401);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusUnauthorizedException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs404() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(404);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusHubOrDeviceIdNotFoundException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs412() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(412);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusPreconditionFailedException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs413() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(413);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusRequestEntityTooLargeException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs429() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(429);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusThrottledException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs500() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(500);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusInternalServerErrorException) any);
+                times = 1;
+            }
+        };
+    }
+
+    //Tests_SRS_HTTPSIOTHUBCONNECTION_34_064: [Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.]
+    @Test
+    public void sendMessageNotifiesListenerIfIotHubStatusCodeIs503() throws IOException
+    {
+        sendMessageNotifiesListenerWithIotHubStatusCode(503);
+        new Verifications()
+        {
+            {
+                mockedListener.onConnectionLost((ConnectionStatusServerBusyException) any);
+                times = 1;
+            }
+        };
+    }
+
+    private void sendMessageNotifiesListenerWithIotHubStatusCode(final int httpStatusCode) throws IOException
+    {
+        //arrange
+        new NonStrictExpectations()
+        {
+            {
+                new URL(anyString);
+                result = mockUrl;
+                new HttpsRequest(mockUrl, HttpsMethod.POST, (byte[]) any);
+                result = mockRequest;
+                mockRequest.send();
+                result = mockResponse;
+                mockResponse.getStatus();
+                result = httpStatusCode;
+                IotHubStatusCode.getIotHubStatusCode(httpStatusCode);
+            }
+        };
+        HttpsIotHubConnection connection = new HttpsIotHubConnection(mockConfig);
+        connection.addListener(mockedListener);
+
+        //act
+        connection.sendMessage(mockedMessage);
     }
 }

@@ -3,15 +3,77 @@
 
 package com.microsoft.azure.sdk.iot.device;
 
+import com.microsoft.azure.sdk.iot.device.exceptions.*;
+import com.microsoft.azure.sdk.iot.device.transport.ConnectionStatusExceptions.ConnectionStatusException;
+import com.microsoft.azure.sdk.iot.device.transport.ConnectionStatusExceptions.IotHubConnectionStatusException;
+
 /**
  * An IoT Hub status code. Included in a message from an IoT Hub to a device.
  */
 public enum IotHubStatusCode
 {
-    OK, OK_EMPTY, BAD_FORMAT, UNAUTHORIZED, TOO_MANY_DEVICES,
+    OK,
+    OK_EMPTY,
+    BAD_FORMAT,
+    UNAUTHORIZED,
+    TOO_MANY_DEVICES,
     HUB_OR_DEVICE_ID_NOT_FOUND,
-    PRECONDITION_FAILED, REQUEST_ENTITY_TOO_LARGE, THROTTLED,
-    INTERNAL_SERVER_ERROR, SERVER_BUSY, ERROR, MESSAGE_EXPIRED,MESSAGE_CANCELLED_ONCLOSE;
+    PRECONDITION_FAILED,
+    REQUEST_ENTITY_TOO_LARGE,
+    THROTTLED,
+    INTERNAL_SERVER_ERROR,
+    SERVER_BUSY,
+    ERROR,
+    MESSAGE_EXPIRED,
+    MESSAGE_CANCELLED_ONCLOSE;
+
+    public static ConnectionStatusException getConnectionStatusException(IotHubStatusCode statusCode)
+    {
+        ConnectionStatusException connectionStatusException;
+        switch (statusCode)
+        {
+            case OK:
+            case OK_EMPTY:
+            case MESSAGE_CANCELLED_ONCLOSE:
+            case MESSAGE_EXPIRED:
+                connectionStatusException = null;
+                break;
+            case BAD_FORMAT:
+                connectionStatusException = new ConnectionStatusBadFormatException();
+                break;
+            case UNAUTHORIZED:
+                connectionStatusException = new ConnectionStatusUnauthorizedException();
+                break;
+            case TOO_MANY_DEVICES:
+                connectionStatusException = new ConnectionStatusTooManyDevicesException();
+                break;
+            case HUB_OR_DEVICE_ID_NOT_FOUND:
+                connectionStatusException = new ConnectionStatusHubOrDeviceIdNotFoundException();
+                break;
+            case PRECONDITION_FAILED:
+                connectionStatusException = new ConnectionStatusPreconditionFailedException();
+                break;
+            case REQUEST_ENTITY_TOO_LARGE:
+                connectionStatusException = new ConnectionStatusRequestEntityTooLargeException();
+                break;
+            case THROTTLED:
+                connectionStatusException = new ConnectionStatusThrottledException();
+                break;
+            case INTERNAL_SERVER_ERROR:
+                connectionStatusException = new ConnectionStatusInternalServerErrorException();
+                break;
+            case SERVER_BUSY:
+                connectionStatusException = new ConnectionStatusServerBusyException();
+                break;
+            case ERROR:
+                connectionStatusException = new ConnectionStatusUnknownException("Service gave unknown status code: " + statusCode);
+                break;
+            default:
+                connectionStatusException = new IotHubConnectionStatusException("Service gave unknown status code: " + statusCode);
+        }
+
+        return connectionStatusException;
+    }
 
     /**
      * Returns the IoT Hub status code referenced by the HTTPS status code.

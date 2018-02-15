@@ -65,6 +65,10 @@ public ResponseMessage sendEvent(HttpsMessage msg) throws IOException;
 
 **SRS_HTTPSIOTHUBCONNECTION_34_059: [**If this config is using x509 authentication, this function shall retrieve its sslcontext from its x509 Authentication object.**]**
 
+**SRS_HTTPSIOTHUBCONNECTION_34_063: [**If this function encounters a NoRouteToHostException or UnknownHostException upon sending the http request, this function shall notify its listener of a retryable ProtocolConnectionStatusException.**]**
+
+**SRS_HTTPSIOTHUBCONNECTION_34_064: [**Upon receiving a response code from the service from the HTTP request, this function shall check if that response code signifies a connection status exception and, if it is, this function shall notify its listener of that exception.**]**
+
 
 ### sendHttpsMessage
 
