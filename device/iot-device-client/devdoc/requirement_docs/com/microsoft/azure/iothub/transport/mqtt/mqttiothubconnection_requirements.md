@@ -20,12 +20,8 @@ public final class MqttIotHubConnection implements MqttConnectionStateListener
     
     void registerConnectionStateCallback(IotHubConnectionStateCallback callback, Object callbackContext);
     
-    @Override
-    public void connectionEstablished();
-
-    @Override
-    public void connectionLost();
-
+    public void onConnectionEstablished();
+    public void onConnectionLost(Throwable throwable);
 }
 ```
 
@@ -98,8 +94,6 @@ public IotHubStatusCode sendEvent(Message msg) throws IllegalStateException
 
 **SRS_MQTTIOTHUBCONNECTION_34_035: [**If the sas token saved in the config has expired and needs to be renewed, this function shall return UNAUTHORIZED.**]**
 
-**SRS_MQTTIOTHUBCONNECTION_34_036: [**If the sas token saved in the config has expired and needs to be renewed and if there is a connection state callback saved, this function shall invoke that callback with Status SAS_TOKEN_EXPIRED.**]**
-
 
 ### receiveMessage
 
@@ -123,22 +117,44 @@ void registerConnectionStateCallback(IotHubConnectionStateCallback callback, Obj
 
 **SRS_MQTTIOTHUBCONNECTION_34_033: [**If the provided callback object is null, this function shall throw an IllegalArgumentException.**]**
 
-**SRS_MQTTIOTHUBCONNECTION_34_034: [**This function shall save the provided callback and callback context.**]**
 
-
-### connectionLost
+### onConnectionLost
 
 ```java
-public void connectionLost();
+public void onConnectionLost(Throwable throwable);
 ```
 
-**SRS_MQTTIOTHUBCONNECTION_34_028: [**If this object's connection state callback is not null, this function shall fire that callback with the saved context and status CONNECTION_DROP.**]**
+**SRS_MQTTIOTHUBCONNECTION_34_037: [**If the provided throwable is an instance of MqttException, this function shall derive the associated ConnectionStatusException and notify the listener of that derived exception.**]**
 
+**SRS_MQTTIOTHUBCONNECTION_34_037: [**If the provided throwable is not an instance of MqttException, this function shall notify the listener of that throwable.**]**
 
-### connectionEstablished
+**SRS_MQTTIOTHUBCONNECTION_34_039: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map all client exceptions with underlying UnknownHostException or InterruptedException to a retryable ProtocolConnectionStatusException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_040: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map all client exceptions without underlying UnknownHostException and InterruptedException to a non retryable ProtocolConnectionStatusException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_041: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_INVALID_PROTOCOL_VERSION to ConnectionStatusMqttRejectedProtocolVersionException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_042: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_INVALID_CLIENT_ID to ConnectionStatusMqttIdentifierRejectedException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_043: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_BROKER_UNAVAILABLE to ConnectionStatusMqttServerUnavailableException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_044: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_FAILED_AUTHENTICATION to ConnectionStatusMqttBadUsernameOrPasswordException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_045: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_NOT_AUTHORIZED to ConnectionStatusMqttUnauthorizedException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_046: [**When deriving the ConnectionStatusException from the provided MqttException, this
+    function shall map REASON_CODE_SUBSCRIBE_FAILED, REASON_CODE_CLIENT_NOT_CONNECTED, REASON_CODE_TOKEN_INUSE,
+    REASON_CODE_CONNECTION_LOST, REASON_CODE_SERVER_CONNECT_ERROR, REASON_CODE_CLIENT_TIMEOUT, REASON_CODE_WRITE_TIMEOUT,
+    and REASON_CODE_MAX_INFLIGHT to a retryable ProtocolConnectionStatusException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_047: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map any connect codes between 6 and 255 inclusive to ConnectionStatusMqttUnexpectedErrorException.**]**
+
+**SRS_MQTTIOTHUBCONNECTION_34_048: [**When deriving the ConnectionStatusException from the provided MqttException, this function shall map all other MqttExceptions to ProtocolConnectionStatusException.**]**
+
+### onConnectionEstablished
 
 ```java
-public void connectionEstablished();
+public void onConnectionEstablished();
 ```
 
-**SRS_MQTTIOTHUBCONNECTION_34_029: [**If this object's connection state callback is not null, this function shall fire that callback with the saved context and status CONNECTION_SUCCESS.**]**
+**SRS_MQTTIOTHUBCONNECTION_34_036: [**This function shall notify its listener that connection was established successfully.**]**

@@ -16,6 +16,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.*;
@@ -340,7 +341,7 @@ public class MqttTest
                 times = 1;
                 mockMqttToken.waitForCompletion();
                 times = 1;
-                mockedMqttConnectionStateListener.connectionEstablished();
+                mockedMqttConnectionStateListener.onConnectionEstablished();
                 times = 1;
             }
         };
@@ -395,14 +396,13 @@ public class MqttTest
         Deencapsulation.invoke(mockMqtt, "connect");
     }
 
-    /*
-    **Tests_SRS_Mqtt_25_007: [**If an MQTT connection is unable to be established for any reason, the function shall throw an IOException.**]**
-     */
-    @Test(expected = IOException.class)
+    //Tests_SRS_Mqtt_34_007: [If an MQTT connection is unable to be established for any reason, the function shall notify any listeners and then throw an IOException.]
+    @Test
     public void connectThrowsIoExceptionOnMqttException() throws IOException, MqttException
     {
         //arrange
         baseConstructorExpectations();
+        final String expectedErrorMessage = UUID.randomUUID().toString();
         new NonStrictExpectations()
         {
             {
@@ -410,15 +410,37 @@ public class MqttTest
                 result = false;
                 mockMqttAsyncClient.connect(mockMqttConnectionOptions);
                 result = mockMqttException;
+                mockMqttException.getMessage();
+                result = expectedErrorMessage;
             }
         };
-        Mqtt mockMqtt = instantiateMqtt(true);
+        Mqtt mockMqtt = instantiateMqtt(true, mockedMqttConnectionStateListener);
+
 
         //act
-        Deencapsulation.invoke(mockMqtt, "connect");
+        Exception thrownException = null;
+        boolean expectedExceptionThrown = false;
+        try
+        {
+            Deencapsulation.invoke(mockMqtt, "connect");
+        }
+        catch (Exception e)
+        {
+            if (e.getCause().getMessage().equals(expectedErrorMessage))
+            {
+                expectedExceptionThrown = true;
+            }
+        }
 
         //assert
-        baseConnectVerifications();
+        assertTrue(expectedExceptionThrown);
+        new Verifications()
+        {
+            {
+                mockedMqttConnectionStateListener.onConnectionLost(mockMqttException);
+                times = 1;
+            }
+        };
     }
 
     /*
@@ -1043,13 +1065,13 @@ public class MqttTest
     {
         //arrange
         Mqtt mockMqtt = null;
-        Throwable t = new Throwable();
+        final Throwable t = new Throwable();
         baseConstructorExpectations();
 
         new StrictExpectations()
         {
             {
-                mockedMqttConnectionStateListener.connectionLost();
+                mockedMqttConnectionStateListener.onConnectionLost(t);
 
                 mockMqttAsyncClient.isConnected();
                 result = false;
@@ -1067,7 +1089,7 @@ public class MqttTest
                 result = mockMqttToken;
                 mockMqttToken.waitForCompletion();
 
-                mockedMqttConnectionStateListener.connectionEstablished();
+                mockedMqttConnectionStateListener.onConnectionEstablished();
 
                 mockMqttAsyncClient.isConnected();
                 result = true;

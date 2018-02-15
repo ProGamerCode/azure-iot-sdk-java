@@ -4,11 +4,19 @@
 package com.microsoft.azure.sdk.iot.device.transport.mqtt;
 
 import com.microsoft.azure.sdk.iot.device.*;
+import com.microsoft.azure.sdk.iot.device.transport.ConnectionStatusExceptions.ConnectionStatusException;
+import com.microsoft.azure.sdk.iot.device.transport.ConnectionStatusExceptions.IotHubConnectionStatusException;
+import com.microsoft.azure.sdk.iot.device.transport.ConnectionStatusExceptions.ProtocolConnectionStatusException;
 import com.microsoft.azure.sdk.iot.device.transport.*;
+import com.microsoft.azure.sdk.iot.device.transport.mqtt.exceptions.*;
+import org.eclipse.paho.client.mqttv3.MqttException;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.net.UnknownHostException;
+
+import static org.eclipse.paho.client.mqttv3.MqttException.*;
 
 public class MqttIotHubConnection implements MqttConnectionStateListener, IotHubTransportConnection
 {
@@ -34,13 +42,15 @@ public class MqttIotHubConnection implements MqttConnectionStateListener, IotHub
 
     private static final String TWIN_API_VERSION = "api-version=2016-11-14";
 
+    private static final int UNDEFINED_MQTT_CONNECT_CODE_LOWER_BOUND = 6;
+    private static final int UNDEFINED_MQTT_CONNECT_CODE_UPPER_BOUND = 255;
+
+    private IotHubListener listener;
+
     //Messaging clients
     private MqttMessaging deviceMessaging;
     private MqttDeviceTwin deviceTwin;
     private MqttDeviceMethod deviceMethod;
-
-    private IotHubConnectionStateCallback stateCallback;
-    private Object stateCallbackContext;
 
     /**
      * Constructs an instance from the given {@link DeviceClientConfig}
@@ -209,7 +219,6 @@ public class MqttIotHubConnection implements MqttConnectionStateListener, IotHub
 
             this.state = State.CLOSED;
         }
-
         catch (Exception e)
         {
             this.state = State.CLOSED;
@@ -255,12 +264,6 @@ public class MqttIotHubConnection implements MqttConnectionStateListener, IotHub
 
             if (this.config.getAuthenticationType() == DeviceClientConfig.AuthType.SAS_TOKEN && this.config.getSasTokenAuthentication().isRenewalNecessary())
             {
-                if (this.stateCallback != null)
-                {
-                    //Codes_SRS_MQTTIOTHUBCONNECTION_34_036: [If the sas token saved in the config has expired and needs to be renewed and if there is a connection state callback saved, this function shall invoke that callback with Status SAS_TOKEN_EXPIRED.]
-                    this.stateCallback.execute(IotHubConnectionState.SAS_TOKEN_EXPIRED, this.stateCallbackContext);
-                }
-
                 //Codes_SRS_MQTTIOTHUBCONNECTION_34_035: [If the sas token saved in the config has expired and needs to be renewed, this function shall return UNAUTHORIZED.]
                 return IotHubStatusCode.UNAUTHORIZED;
             }
@@ -330,47 +333,32 @@ public class MqttIotHubConnection implements MqttConnectionStateListener, IotHub
         return message;
     }
 
-    /**
-     * Saves the provided callback and callbackContext objects to be used for connection state updates
-     * @param callback the callback to fire
-     * @param callbackContext the context to include
-     * @throws IllegalArgumentException if the provided callback object is null
-     */
-    void registerConnectionStateCallback(IotHubConnectionStateCallback callback, Object callbackContext)
+    public void onConnectionLost(Throwable throwable)
     {
-        if (callback == null)
+        if (throwable instanceof MqttException)
         {
-            //Codes_SRS_MQTTIOTHUBCONNECTION_34_033: [If the provided callback object is null, this function shall throw an IllegalArgumentException.]
-            throw new IllegalArgumentException("Callback cannot be null");
+            //Codes_SRS_MQTTIOTHUBCONNECTION_34_037: [If the provided throwable is an instance of MqttException, this function shall derive the associated ConnectionStatusException and notify the listener of that derived exception.]
+            ConnectionStatusException connectionStatusException = getConnectionStatusExceptionFromMqttException((MqttException) throwable);
+            this.listener.onConnectionLost(connectionStatusException);
         }
-
-        //Codes_SRS_MQTTIOTHUBCONNECTION_34_034: [This function shall save the provided callback and callback context.]
-        this.stateCallback = callback;
-        this.stateCallbackContext = callbackContext;
-    }
-
-    public void connectionLost()
-    {
-        if (this.stateCallback != null)
+        else
         {
-            //Codes_SRS_MQTTIOTHUBCONNECTION_34_028: [If this object's connection state callback is not null, this function shall fire that callback with the saved context and status CONNECTION_DROP.]
-            this.stateCallback.execute(IotHubConnectionState.CONNECTION_DROP, this.stateCallbackContext);
+            //Codes_SRS_MQTTIOTHUBCONNECTION_34_037: [If the provided throwable is not an instance of MqttException, this function shall notify the listener of that throwable.]
+            //Currently, this should never happen. Throwable should always be an MqttException, but Paho might change
+            this.listener.onConnectionLost(throwable);
         }
     }
 
-    public void connectionEstablished()
+    public void onConnectionEstablished()
     {
-        if (this.stateCallback != null)
-        {
-            //Codes_SRS_MQTTIOTHUBCONNECTION_34_029: [If this object's connection state callback is not null, this function shall fire that callback with the saved context and status CONNECTION_SUCCESS.]
-            this.stateCallback.execute(IotHubConnectionState.CONNECTION_SUCCESS, this.stateCallbackContext);
-        }
+        //Codes_SRS_MQTTIOTHUBCONNECTION_34_036: [This function shall notify its listener that connection was established successfully.]
+        this.listener.onConnectionEstablished(null);
     }
 
     @Override
     public void addListener(IotHubListener listener) throws IOException
     {
-
+        this.listener = listener;
     }
 
     @Override
@@ -383,5 +371,68 @@ public class MqttIotHubConnection implements MqttConnectionStateListener, IotHub
     public IotHubStatusCode sendMessageResult(Message message, IotHubMessageResult result) throws IOException
     {
         return null;
+    }
+
+    private static ConnectionStatusException getConnectionStatusExceptionFromMqttException(MqttException mqttException)
+    {
+        switch (mqttException.getReasonCode())
+        {
+            case REASON_CODE_CLIENT_EXCEPTION:
+                // MQTT Client encountered an exception, no connect code retrieved from service, so the reason
+                // for this connection loss is in the mqttException cause
+                if (mqttException.getCause() instanceof UnknownHostException || mqttException.getCause() instanceof InterruptedException)
+                {
+                    //Codes_SRS_MQTTIOTHUBCONNECTION_34_039: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map all client exceptions with underlying UnknownHostException or InterruptedException to a retryable ProtocolConnectionStatusException.]
+                    ConnectionStatusException connectionStatusException = new ProtocolConnectionStatusException(mqttException);
+                    connectionStatusException.setRetryable(true);
+                    return connectionStatusException;
+                }
+                else
+                {
+                    //Codes_SRS_MQTTIOTHUBCONNECTION_34_040: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map all client exceptions without underlying UnknownHostException and InterruptedException to a non retryable ProtocolConnectionStatusException.]
+                    return new ProtocolConnectionStatusException(mqttException);
+                }
+            case REASON_CODE_INVALID_PROTOCOL_VERSION:
+                // Codes_SRS_MQTTIOTHUBCONNECTION_34_041: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_INVALID_PROTOCOL_VERSION to ConnectionStatusMqttRejectedProtocolVersionException.]
+                return new ConnectionStatusMqttRejectedProtocolVersionException(mqttException);
+            case REASON_CODE_INVALID_CLIENT_ID:
+                // Codes_SRS_MQTTIOTHUBCONNECTION_34_042: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_INVALID_CLIENT_ID to ConnectionStatusMqttIdentifierRejectedException.]
+                return new ConnectionStatusMqttIdentifierRejectedException(mqttException);
+            case REASON_CODE_BROKER_UNAVAILABLE:
+                // Codes_SRS_MQTTIOTHUBCONNECTION_34_043: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_BROKER_UNAVAILABLE to ConnectionStatusMqttServerUnavailableException.]
+                return new ConnectionStatusMqttServerUnavailableException(mqttException);
+            case REASON_CODE_FAILED_AUTHENTICATION:
+                // Codes_SRS_MQTTIOTHUBCONNECTION_34_044: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_FAILED_AUTHENTICATION to ConnectionStatusMqttBadUsernameOrPasswordException.]
+                return new ConnectionStatusMqttBadUsernameOrPasswordException(mqttException);
+            case REASON_CODE_NOT_AUTHORIZED:
+                // Codes_SRS_MQTTIOTHUBCONNECTION_34_045: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_NOT_AUTHORIZED to ConnectionStatusMqttUnauthorizedException.]
+                return new ConnectionStatusMqttUnauthorizedException(mqttException);
+            case REASON_CODE_SUBSCRIBE_FAILED:
+            case REASON_CODE_CLIENT_NOT_CONNECTED:
+            case REASON_CODE_TOKEN_INUSE:
+            case REASON_CODE_CONNECTION_LOST:
+            case REASON_CODE_SERVER_CONNECT_ERROR:
+            case REASON_CODE_CLIENT_TIMEOUT:
+            case REASON_CODE_WRITE_TIMEOUT:
+            case REASON_CODE_MAX_INFLIGHT:
+                // Codes_SRS_MQTTIOTHUBCONNECTION_34_046: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map REASON_CODE_SUBSCRIBE_FAILED, REASON_CODE_CLIENT_NOT_CONNECTED, REASON_CODE_TOKEN_INUSE, REASON_CODE_CONNECTION_LOST, REASON_CODE_SERVER_CONNECT_ERROR, REASON_CODE_CLIENT_TIMEOUT, REASON_CODE_WRITE_TIMEOUT, and REASON_CODE_MAX_INFLIGHT to a retryable ProtocolConnectionStatusException.]
+                //Client lost internet connection, or server could not be reached, or other retryable connection exceptions
+                ConnectionStatusException connectionStatusException = new ProtocolConnectionStatusException(mqttException);
+                connectionStatusException.setRetryable(true);
+                return connectionStatusException;
+            default:
+                if (mqttException.getReasonCode() >= UNDEFINED_MQTT_CONNECT_CODE_LOWER_BOUND && mqttException.getReasonCode() <= UNDEFINED_MQTT_CONNECT_CODE_UPPER_BOUND)
+                {
+                    //Mqtt connect codes 6 to 255 are reserved for future MQTT standard codes and are unused as of MQTT 3
+                    //Codes_SRS_MQTTIOTHUBCONNECTION_34_047: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map any connect codes between 6 and 255 inclusive to ConnectionStatusMqttUnexpectedErrorException.]
+                    return new ConnectionStatusMqttUnexpectedErrorException(mqttException);
+                }
+                else
+                {
+                    //Mqtt connect code was not MQTT standard code, and was not a retryable exception as defined by Paho
+                    //Codes_SRS_MQTTIOTHUBCONNECTION_34_048: [When deriving the ConnectionStatusException from the provided MqttException, this function shall map all other MqttExceptions to ProtocolConnectionStatusException.]
+                    return new ProtocolConnectionStatusException(mqttException);
+                }
+        }
     }
 }

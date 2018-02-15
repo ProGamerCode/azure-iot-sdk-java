@@ -100,16 +100,19 @@ abstract public class Mqtt implements MqttCallback
                     //Codes_SRS_Mqtt_34_020: [If the MQTT connection is established successfully, this function shall notify its listener that connection was established.]
                     if (this.listener != null)
                     {
-                        this.listener.connectionEstablished();
+                        this.listener.onConnectionEstablished();
                     }
                 }
             }
             catch (MqttException e)
             {
-                /*
-                ** Codes_SRS_Mqtt_25_007: [**If an MQTT connection is unable to be established for any reason, the function shall throw an IOException.**]**
-                 */
-                throw new IOException("Unable to connect to service" + e.getCause(), e);
+                //Codes_SRS_Mqtt_34_007: [If an MQTT connection is unable to be established for any reason, the function shall notify any listeners and then throw an IOException.]
+                if (this.listener != null)
+                {
+                    this.listener.onConnectionLost(e);
+                }
+
+                throw new IOException("Unable to connect to service: " + e.getMessage(), e);
             }
         }
     }
@@ -356,7 +359,7 @@ abstract public class Mqtt implements MqttCallback
         if (this.listener != null)
         {
             //Codes_SRS_Mqtt_34_045: [If this object has a saved listener, this function shall notify the listener that connection was lost.]
-            this.listener.connectionLost();
+            this.listener.onConnectionLost(throwable);
         }
 
         synchronized (this.mqttLock)

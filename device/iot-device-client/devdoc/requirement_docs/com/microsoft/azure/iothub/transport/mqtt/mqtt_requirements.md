@@ -54,7 +54,7 @@ protected void connect() throws IOException;
 
 **SRS_Mqtt_25_006: [**If the inner class MqttConnectionInfo has not been instantiated then the function shall throw IOException.**]**
 
-**SRS_Mqtt_25_007: [**If an MQTT connection is unable to be established for any reason, the function shall throw an IOException.**]**
+**SRS_Mqtt_34_007: [**If an MQTT connection is unable to be established for any reason, the function shall notify any listeners and then throw an IOException.**]**
 
 **SRS_Mqtt_25_008: [**If the MQTT connection is already open, the function shall do nothing.**]**
 
