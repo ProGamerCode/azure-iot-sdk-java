@@ -53,6 +53,9 @@ public class DeviceClientTest
     @Mocked
     SecurityProvider mockSecurityProvider;
 
+    @Mocked
+    IotHubConnectionStatusChangeCallback mockedIotHubConnectionStatusChangeCallback;
+
     private static long SEND_PERIOD_MILLIS = 10L;
     private static long RECEIVE_PERIOD_MILLIS_AMQPS = 10L;
     private static long RECEIVE_PERIOD_MILLIS_HTTPS = 25*60*1000; /*25 minutes*/
@@ -3302,4 +3305,41 @@ public class DeviceClientTest
         assertNull(Deencapsulation.getField(client, "config"));
         assertNull(Deencapsulation.getField(client, "deviceIO"));
     }
+
+    //Tests_SRS_DEVICECLIENT_34_068: [If the callback is null the method shall throw an IllegalArgument exception.]
+    @Test (expected = IllegalArgumentException.class)
+    public void registerConnectionStatusChangeCallbackThrowsForNullCallback() throws URISyntaxException
+    {
+        //arrange
+        final String connString = "HostName=iothub.device.com;CredentialType=SharedAccessKey;CredentialScope=Device;DeviceId=testdevice;SharedAccessKey=adjkl234j52=;";
+        DeviceClient client = new DeviceClient(connString, IotHubClientProtocol.AMQPS);
+
+        //act
+        client.registerConnectionStatusChangeCallback(null, new Object());
+    }
+
+    //Tests_SRS_DEVICECLIENT_34_069: [This function shall register the provided callback and context with its device IO instance.]
+    @Test
+    public void registerConnectionStatusChangeCallbackRegistersCallbackWithDeviceIO() throws URISyntaxException
+    {
+        //arrange
+        final String connString = "HostName=iothub.device.com;CredentialType=SharedAccessKey;CredentialScope=Device;DeviceId=testdevice;SharedAccessKey=adjkl234j52=;";
+        DeviceClient client = new DeviceClient(connString, IotHubClientProtocol.AMQPS);
+        Deencapsulation.setField(client, "deviceIO", mockDeviceIO);
+        final Object context = new Object();
+
+        //act
+        client.registerConnectionStatusChangeCallback(mockedIotHubConnectionStatusChangeCallback, context);
+
+        //assert
+        new Verifications()
+        {
+            {
+                mockDeviceIO.registerConnectionStatusChangeCallback(mockedIotHubConnectionStatusChangeCallback, context);
+                times = 1;
+            }
+        };
+    }
+
+
 }

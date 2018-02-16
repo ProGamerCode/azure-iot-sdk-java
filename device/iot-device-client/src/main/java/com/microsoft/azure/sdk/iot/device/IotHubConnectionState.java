@@ -7,5 +7,5 @@ public enum IotHubConnectionState
 {
     CONNECTION_SUCCESS,
     CONNECTION_DROP,
-    SAS_TOKEN_EXPIRED;
+    SAS_TOKEN_EXPIRED
 }

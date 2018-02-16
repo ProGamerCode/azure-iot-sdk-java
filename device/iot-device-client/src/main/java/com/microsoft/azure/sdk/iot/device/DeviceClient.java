@@ -1206,11 +1206,12 @@ public final class DeviceClient implements Closeable
 
     /**
      * Registers a callback to be executed whenever the connection to the device is lost or established.
-     *
+     * @deprecated as of release TODO by {@link #registerConnectionStatusChangeCallback(IotHubConnectionStatusChangeCallback callback, Object callbackContext)}
      * @param callback the callback to be called.
      * @param callbackContext a context to be passed to the callback. Can be
      * {@code null} if no callback is provided.
      */
+    @Deprecated
     public void registerConnectionStateCallback(IotHubConnectionStateCallback callback, Object callbackContext)
     {
         //Codes_SRS_DEVICECLIENT_99_003: [If the callback is null the method shall throw an IllegalArgument exception.]
@@ -1222,6 +1223,27 @@ public final class DeviceClient implements Closeable
         //Codes_SRS_DEVICECLIENT_99_001: [The registerConnectionStateCallback shall register the callback with the Device IO even if the not open.]
         //Codes_SRS_DEVICECLIENT_99_002: [The registerConnectionStateCallback shall register the callback even if the client is not open.]
         this.deviceIO.registerConnectionStateCallback(callback, callbackContext);
+    }
+
+    /**
+     * Registers a callback to be executed when the connection status of the device changes. The callback will be fired
+     * with a status and a reason why the device's status changed. When the callback is fired, the provided context will
+     * be provided alongside the status and reason.
+     *
+     * @param callback The callback to be fired when the connection status of the device changes
+     * @param callbackContext a context to be passed to the callback. Can be
+     * {@code null} if no callback is provided.
+     */
+    public void registerConnectionStatusChangeCallback(IotHubConnectionStatusChangeCallback callback, Object callbackContext)
+    {
+        if (callback == null)
+        {
+            //Codes_SRS_DEVICECLIENT_34_068: [If the callback is null the method shall throw an IllegalArgument exception.]
+            throw new IllegalArgumentException("Callback cannot be null");
+        }
+
+        //Codes_SRS_DEVICECLIENT_34_069: [This function shall register the provided callback and context with its device IO instance.]
+        this.deviceIO.registerConnectionStatusChangeCallback(callback, callbackContext);
     }
 
     /**
